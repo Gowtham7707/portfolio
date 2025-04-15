@@ -16,6 +16,6 @@ spec:
     spec:
       containers:
       - name: portfolio
-        image: gowthamc121/gowthamc121/portfolio:10
+        image: gowthamc121/portfolio:10
         ports:
         - containerPort: 80
