@@ -1,0 +1,100 @@
+pipeline {
+    agent any
+    
+    environment {
+        DOCKERHUB_USERNAME = "gowthamc121"
+        APP_NAME = "portfolio"
+        IMAGE_TAG = "${BUILD_NUMBER}"
+        IMAGE_NAME = "${DOCKERHUB_USERNAME}"+ "/" + "${APP_NAME}"
+        DOCKERHUB_REGISTRY_CREDS = "dockerhub"
+    }
+    stages {
+        stage("Workspace cleanup"){
+            steps {
+                script {
+                    cleanWs()
+                }
+            }
+        }
+        
+         stage("SCM checkout") {
+            steps {
+                script {
+                    git credentials: "github",
+                    url : "https://github.com/Gowtham7707/portfolio.git"
+                    branch : "master"
+                    
+                }
+            }
+        }
+        
+         stage("Build docker image") {
+            steps {
+                script {
+                    
+                    sh '''            
+                    echo "build the docker image"
+                    docker build -t "${IMAGE_NAME}:${IMAGE_TAG}" .
+                    '''
+                }
+            }
+        }
+        
+        stage("push docker image") {
+            steps {
+                script {
+                    
+                    docker.withRegistry('',DOCKERHUB_REGISTRY_CREDS){
+                    sh '''            
+                    echo "Push the docker image"
+                    docker push "${IMAGE_NAME}:${IMAGE_TAG}"
+                    '''
+                    }
+                }
+            }
+        }
+        
+         stage("Remove docker image") {
+            steps {
+                script {
+
+                    sh '''            
+                    echo "Push the docker image"
+                    docker rmi "${IMAGE_NAME}:${IMAGE_TAG}"
+                    '''
+                }
+            }
+        }
+        
+        stage("Update Kubernetes yaml file") {
+            steps {
+                script {
+
+                    sh '''            
+                    cat deployment.yml
+                    sed -i "s/${APP_NAME}:.*/${APP_NAME}:${IMAGE_TAG}/g" deployment.yml
+                    cat deployment.yml
+                    '''
+                }
+            }
+        }
+        
+         stage("Push the changed deployment file to Git") {
+            steps {
+                script {
+
+                    sh '''            
+                      git config --global user.name "Gowtham7707"
+                      git config --global user.email "gowthamc121@gmail.com"
+                      git add deployment.yml
+                      git commit -m "Updated the deployment.yml"
+                    '''
+                    withCredentials([gitUsernamePassword(credentialsId: 'github', gitToolName: 'Default')]) {
+                     sh "git push https://github.com/Gowtham7707/portfolio.git master"
+                    }
+                }
+            }
+        }
+        
+    }
+}
